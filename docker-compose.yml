@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  fpl-bot:
+    build: .
+    container_name: fpl-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DATABASE_PATH=/data/fpl_bot.db
+    volumes:
+      # Persist SQLite database across container restarts
+      - fpl-data:/data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  fpl-data:
+    driver: local

@@ -1,0 +1,40 @@
+# FPL Automation Bot — Dependencies
+
+# FPL API
+fpl==0.7.2
+aiohttp==3.10.5
+
+# Optimisation
+pulp==2.9.0
+scipy==1.14.1
+
+# Data
+pandas==2.2.3
+numpy==2.1.1
+understatapi==0.7.0
+
+# Database
+aiosqlite==0.20.0
+
+# Scheduling
+APScheduler==3.10.4
+
+# Config / validation
+pydantic==2.8.2
+pydantic-settings==2.4.0
+python-dotenv==1.0.1
+
+# HTTP (extras)
+aiohttp-retry==2.8.3
+
+# Notifications
+# (Discord/Slack via plain aiohttp webhooks — no extra lib needed)
+
+# Testing
+pytest==8.3.3
+pytest-asyncio==0.24.0
+pytest-mock==3.14.0
+
+# Utilities
+python-dateutil==2.9.0
+pytz==2024.2
