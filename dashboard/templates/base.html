@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-50">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}FPL Dashboard{% endblock %}</title>
+
+  <!-- Tailwind CSS (Play CDN — no build step needed) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            fpl: { green: '#00ff87', purple: '#38003c' }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- htmx — partial page updates -->
+  <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+
+  <!-- Chart.js — for history chart -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" defer></script>
+
+  <style>
+    .htmx-indicator { display: none; }
+    .htmx-request .htmx-indicator { display: inline-block; }
+    .htmx-request.htmx-indicator { display: inline-block; }
+    .fdr-1 { background:#00a650; color:#fff; }
+    .fdr-2 { background:#01c45c; color:#000; }
+    .fdr-3 { background:#e8e8e8; color:#000; }
+    .fdr-4 { background:#f08080; color:#000; }
+    .fdr-5 { background:#c0042a; color:#fff; }
+  </style>
+</head>
+
+<body class="h-full">
+  <!-- Nav -->
+  <nav class="bg-[#38003c] text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-14">
+        <div class="flex items-center gap-6">
+          <span class="font-bold text-lg text-[#00ff87]">⚽ FPL Dashboard</span>
+          {% set nav_links = [
+            ('/', 'Squad', 'index'),
+            ('/transfers', 'Transfers', 'transfers'),
+            ('/players', 'Players', 'players'),
+            ('/fixtures', 'Fixtures', 'fixtures'),
+            ('/history', 'History', 'history'),
+            ('/settings', 'Settings', 'settings'),
+          ] %}
+          {% for href, label, key in nav_links %}
+          <a href="{{ href }}"
+             class="text-sm font-medium px-3 py-1 rounded
+                    {% if page == key %}bg-[#00ff87] text-[#38003c]{% else %}text-gray-300 hover:text-white hover:bg-purple-900{% endif %}">
+            {{ label }}
+          </a>
+          {% endfor %}
+        </div>
+        <div class="flex items-center gap-3 text-sm text-gray-400">
+          {% if data %}
+            <span>GW{{ data.gw }}</span>
+            {% if data.gw_deadline %}
+              <span class="text-[#00ff87]">⏰ Deadline {{ data.gw_deadline.strftime('%d %b %H:%M') }}</span>
+            {% endif %}
+            <span class="text-xs opacity-50">Updated {{ data.last_updated.strftime('%H:%M') }}</span>
+          {% endif %}
+          <!-- Refresh button -->
+          <button
+            hx-post="/api/analyse"
+            hx-target="#squad-cards"
+            hx-swap="innerHTML"
+            hx-indicator="#spinner"
+            onclick="window.location.reload()"
+            class="bg-[#00ff87] text-[#38003c] text-xs font-bold px-3 py-1 rounded hover:opacity-90 transition">
+            ↻ Refresh
+          </button>
+          <span id="spinner" class="htmx-indicator text-xs animate-pulse">Analysing…</span>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Warnings -->
+  {% if data and data.warnings %}
+  <div class="bg-amber-50 border-b border-amber-200 px-4 py-2">
+    <div class="max-w-7xl mx-auto">
+      {% for w in data.warnings %}
+        <p class="text-amber-700 text-sm">⚠ {{ w }}</p>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- No data banner -->
+  {% if not data %}
+  <div class="bg-blue-50 border-b border-blue-200 px-4 py-3">
+    <div class="max-w-7xl mx-auto flex items-center gap-3">
+      <span class="text-blue-700 text-sm">No analysis yet.</span>
+      <button
+        hx-post="/api/analyse"
+        hx-target="#squad-cards"
+        hx-swap="innerHTML"
+        onclick="window.location.reload()"
+        class="bg-blue-600 text-white text-xs px-3 py-1 rounded hover:bg-blue-700">
+        Run Analysis Now
+      </button>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Page content -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="text-center text-xs text-gray-400 py-4">
+    FPL Dashboard — analysis only, no transfers submitted &nbsp;|&nbsp;
+    <a href="https://fantasy.premierleague.com" target="_blank" class="underline">Open FPL ↗</a>
+  </footer>
+</body>
+</html>

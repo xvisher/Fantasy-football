@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Settings — FPL Dashboard{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-gray-900">Settings</h1>
+  {% if saved %}
+  <div class="bg-green-100 text-green-700 px-4 py-2 rounded-lg text-sm font-medium">
+    ✓ Settings saved — analysis cache cleared
+  </div>
+  {% endif %}
+</div>
+<p class="text-sm text-gray-500 mb-6">
+  Changes are saved to <code class="bg-gray-100 px-1 rounded">.env.local</code> and take effect on the next analysis run.
+  DRY_RUN is always true in the local dashboard — no transfers will ever be submitted.
+</p>
+
+<form method="post" action="/api/settings" class="space-y-8">
+
+  <!-- Transfer strategy -->
+  <div class="bg-white rounded-xl shadow p-6">
+    <h2 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+      🔄 Transfer Strategy
+    </h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      {% call field("max_hit_per_gw", "Max hit per GW (pts)", settings.max_hit_per_gw) %}
+        Max transfer hit points to consider. 4 = 1 hit, 8 = 2 hits.
+      {% endcall %}
+      {% call field("lookahead_gameweeks", "Lookahead GWs", settings.lookahead_gameweeks) %}
+        Future GWs factored into squad optimisation.
+      {% endcall %}
+      {% call field("lookahead_decay", "Lookahead decay", settings.lookahead_decay, step=0.05) %}
+        Weight discount per lookahead GW (0.85 = each future GW worth 85% of previous).
+      {% endcall %}
+    </div>
+  </div>
+
+  <!-- Chip thresholds -->
+  <div class="bg-white rounded-xl shadow p-6">
+    <h2 class="font-semibold text-gray-800 mb-4">💊 Chip Trigger Thresholds</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      {% call field("wildcard_xp_threshold", "Wildcard xP ratio", settings.wildcard_xp_threshold, step=0.05) %}
+        Use wildcard if squad xP / best-possible-xP falls below this value (e.g. 0.85 = 85%).
+      {% endcall %}
+      {% call field("wildcard_bgw_min_players", "Wildcard BGW starters", settings.wildcard_bgw_min_players) %}
+        Use wildcard if this many starters have a blank gameweek.
+      {% endcall %}
+      {% call field("free_hit_bgw_min_starters", "Free Hit BGW starters", settings.free_hit_bgw_min_starters) %}
+        Use free hit if this many starters have no fixture.
+      {% endcall %}
+      {% call field("triple_captain_xp_multiplier", "Triple Captain multiplier", settings.triple_captain_xp_multiplier, step=0.1) %}
+        Use TC if captain xP > season GW average × this value.
+      {% endcall %}
+      {% call field("bench_boost_min_bench_xp", "Bench Boost min bench xP", settings.bench_boost_min_bench_xp, step=1.0) %}
+        Use bench boost if bench total xP exceeds this.
+      {% endcall %}
+    </div>
+  </div>
+
+  <!-- xP model weights -->
+  <div class="bg-white rounded-xl shadow p-6">
+    <h2 class="font-semibold text-gray-800 mb-1">⚖️ xP Model Weights</h2>
+    <p class="text-xs text-gray-400 mb-4">
+      These are overridden by learned weights after GW 5. Adjust here to manually bias the model
+      (e.g. increase xg weight if you think xG is especially predictive this season).
+    </p>
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
+      {% call field("xp_weight_xg", "xG weight", settings.xp_weight_xg, step=0.1) %}Expected goals contribution multiplier.{% endcall %}
+      {% call field("xp_weight_xa", "xA weight", settings.xp_weight_xa, step=0.1) %}Expected assists contribution multiplier.{% endcall %}
+      {% call field("xp_weight_cs", "Clean sheet weight", settings.xp_weight_cs, step=0.1) %}Clean sheet probability contribution multiplier.{% endcall %}
+      {% call field("xp_weight_fdr", "FDR influence", settings.xp_weight_fdr, step=0.05) %}How much fixture difficulty adjusts xP (0 = ignore FDR, 0.5 = strong influence).{% endcall %}
+    </div>
+  </div>
+
+  <div class="flex gap-3">
+    <button type="submit"
+      class="bg-[#38003c] text-white px-6 py-2.5 rounded-lg hover:opacity-90 transition font-medium">
+      Save Settings
+    </button>
+    <a href="/settings" class="text-sm text-gray-500 px-4 py-2.5 rounded-lg border border-gray-200 hover:bg-gray-50">
+      Cancel
+    </a>
+  </div>
+</form>
+
+{% macro field(name, label, value, step=1) %}
+<div>
+  <label class="block text-sm font-medium text-gray-700 mb-1">{{ label }}</label>
+  <input type="number" name="{{ name }}" value="{{ value }}" step="{{ step }}"
+    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#38003c]">
+  <p class="text-xs text-gray-400 mt-1">{{ caller() }}</p>
+</div>
+{% endmacro %}
+{% endblock %}

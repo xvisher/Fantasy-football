@@ -1,0 +1,63 @@
+{% if data %}
+<!-- Summary bar -->
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+  <div class="bg-white rounded-lg shadow p-4 text-center">
+    <div class="text-2xl font-bold text-[#38003c]">{{ "%.1f"|format(data.my_squad | selectattr('player.id', 'in', data.starting_ids) | map(attribute='xp_next_gw') | sum) }}</div>
+    <div class="text-xs text-gray-500 mt-1">Squad xP (starting XI)</div>
+  </div>
+  <div class="bg-white rounded-lg shadow p-4 text-center">
+    {% set cap = data.bootstrap.player_map.get(data.captain_id) %}
+    <div class="text-xl font-bold text-[#38003c]">{{ cap.web_name if cap else '—' }}</div>
+    <div class="text-xs text-gray-500 mt-1">Recommended captain</div>
+  </div>
+  <div class="bg-white rounded-lg shadow p-4 text-center">
+    <div class="text-xl font-bold {% if data.chip_decision.chip %}text-purple-600{% else %}text-gray-400{% endif %}">
+      {{ data.chip_decision.chip.value.upper() if data.chip_decision.chip else 'No chip' }}
+    </div>
+    <div class="text-xs text-gray-500 mt-1">Chip recommendation</div>
+  </div>
+  <div class="bg-white rounded-lg shadow p-4 text-center">
+    {% set ft = data.my_team.transfers.free_transfers if data.my_team else 1 %}
+    <div class="text-2xl font-bold text-green-600">{{ ft }}</div>
+    <div class="text-xs text-gray-500 mt-1">Free transfer{{ 's' if ft != 1 else '' }}</div>
+  </div>
+</div>
+
+{% if data.chip_decision.chip %}
+<div class="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-6 text-sm text-purple-800">
+  <span class="font-bold">💡 Chip suggestion:</span> {{ data.chip_decision.reason }}
+  <span class="ml-2 text-xs text-purple-500">(confidence {{ (data.chip_decision.confidence * 100)|int }}%)</span>
+</div>
+{% endif %}
+
+<!-- Starting XI -->
+<h3 class="font-semibold text-gray-700 mb-3">Starting XI</h3>
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mb-6">
+  {% for pwxp in data.my_squad %}
+    {% if pwxp.player.id in data.starting_ids %}
+      {% include "partials/player_card.html" %}
+    {% endif %}
+  {% endfor %}
+</div>
+
+<!-- Bench -->
+<h3 class="font-semibold text-gray-700 mb-3">Bench</h3>
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+  {% for pwxp in data.my_squad %}
+    {% if pwxp.player.id in data.bench_ids %}
+      {% set is_bench = true %}
+      {% include "partials/player_card.html" %}
+    {% endif %}
+  {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-20 text-gray-400">
+  <p class="text-4xl mb-4">⚽</p>
+  <p class="text-lg">No analysis data yet.</p>
+  <button
+    onclick="window.location.reload()"
+    class="mt-4 bg-[#38003c] text-white px-6 py-2 rounded-lg hover:opacity-90">
+    Run Analysis
+  </button>
+</div>
+{% endif %}

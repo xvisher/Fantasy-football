@@ -1,7 +1,13 @@
 # FPL Bot — convenience commands
 # Run from the repo root on your Hetzner VPS (or local machine).
 #
-# Usage:
+# ── LOCAL DASHBOARD (your PC) ─────────────────────────────────────────────────
+#   make local-up         → start local dashboard at http://localhost:8080
+#   make local-down       → stop local dashboard
+#   make local-logs       → live log stream for local dashboard
+#   make local-build      → rebuild local image (after requirements change)
+#
+# ── HETZNER BOT (VPS) ────────────────────────────────────────────────────────
 #   make logs             → live log stream (Ctrl+C to exit)
 #   make status           → container status + next scheduled jobs
 #   make dry-run GW=5     → analyse GW5, no transfers submitted
@@ -18,10 +24,34 @@
 #   make stop             → stop the bot
 #   make start            → start the bot
 
-COMPOSE := docker compose
-BOT     := fpl-bot
+COMPOSE       := docker compose
+COMPOSE_LOCAL := docker compose -f docker-compose.local.yml
+BOT           := fpl-bot
+DASHBOARD     := fpl-dashboard
 
-.PHONY: logs status dry-run run post-gw go-live pause update restart backup decisions weights shell stop start build
+.PHONY: logs status dry-run run post-gw go-live pause update restart backup decisions weights shell stop start build \
+        local-up local-down local-logs local-build
+
+# ── Local dashboard ───────────────────────────────────────────────────────────
+
+local-up:
+	@if [ ! -f .env.local ]; then \
+	  cp .env.local.example .env.local; \
+	  echo "Created .env.local from example — edit it with your FPL credentials first!"; \
+	  echo "  nano .env.local"; \
+	  exit 1; \
+	fi
+	$(COMPOSE_LOCAL) up -d
+	@echo "Dashboard running at http://localhost:8080"
+
+local-down:
+	$(COMPOSE_LOCAL) down
+
+local-logs:
+	$(COMPOSE_LOCAL) logs -f --tail 100 $(DASHBOARD)
+
+local-build:
+	$(COMPOSE_LOCAL) build --no-cache
 
 logs:
 	$(COMPOSE) logs -f --tail 100 $(BOT)

@@ -1,0 +1,59 @@
+{% set p = pwxp.player %}
+{% set is_captain = (p.id == data.captain_id) %}
+{% set is_vc = (p.id == data.vice_captain_id) %}
+{% set is_bench_card = (p.id in data.bench_ids) %}
+<div class="bg-white rounded-lg shadow-sm border {% if is_captain %}border-yellow-400 ring-2 ring-yellow-300{% elif is_vc %}border-blue-300{% else %}border-gray-100{% endif %} p-3 relative">
+
+  {% if is_captain %}
+    <span class="absolute top-1 right-1 bg-yellow-400 text-black text-xs font-bold px-1.5 py-0.5 rounded">C</span>
+  {% elif is_vc %}
+    <span class="absolute top-1 right-1 bg-blue-400 text-white text-xs font-bold px-1.5 py-0.5 rounded">VC</span>
+  {% endif %}
+
+  {% if pwxp.is_dgw %}
+    <span class="absolute top-1 left-1 bg-green-500 text-white text-xs px-1 py-0.5 rounded">DGW</span>
+  {% elif pwxp.is_bgw %}
+    <span class="absolute top-1 left-1 bg-gray-400 text-white text-xs px-1 py-0.5 rounded">BGW</span>
+  {% endif %}
+
+  <div class="mt-4 text-center">
+    <!-- Position badge -->
+    <span class="inline-block text-xs font-bold px-2 py-0.5 rounded {{ position_badge(p.position.value) }}">
+      {{ p.position.value }}
+    </span>
+    <!-- Name -->
+    <p class="font-semibold text-gray-900 text-sm mt-1 truncate" title="{{ p.first_name }} {{ p.second_name }}">
+      {{ p.web_name }}
+    </p>
+    <!-- Price -->
+    <p class="text-xs text-gray-400">£{{ "%.1f"|format(p.price) }}m</p>
+
+    <!-- xP -->
+    <div class="mt-2">
+      <span class="text-lg font-bold {% if pwxp.xp_next_gw >= 7 %}text-green-600{% elif pwxp.xp_next_gw >= 4 %}text-gray-800{% else %}text-red-500{% endif %}">
+        {{ "%.1f"|format(pwxp.xp_next_gw) }}
+      </span>
+      <span class="text-xs text-gray-400"> xP</span>
+    </div>
+
+    <!-- FDR bar -->
+    <div class="mt-1.5 flex justify-center gap-0.5">
+      {% set fdr = pwxp.fdr_next_gw|int %}
+      {% for i in range(1, 6) %}
+        <div class="w-3 h-1.5 rounded-sm {% if i <= fdr %}fdr-{{ fdr }}{% else %}bg-gray-200{% endif %}"></div>
+      {% endfor %}
+    </div>
+
+    <!-- Status / news -->
+    {% if p.status != 'a' or p.news %}
+    <p class="text-xs text-amber-600 mt-1 truncate" title="{{ p.news }}">
+      {% if p.status == 'i' %}🚑{% elif p.status == 'd' %}⚠{% elif p.status == 's' %}🟥{% endif %}
+      {% if p.chance_of_playing_next_round is not none %}{{ p.chance_of_playing_next_round }}%{% endif %}
+    </p>
+    {% endif %}
+
+    {% if is_bench_card %}
+    <p class="text-xs text-gray-300 mt-1">bench</p>
+    {% endif %}
+  </div>
+</div>

@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Transfers — FPL Dashboard{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-900 mb-6">Transfer Recommendations — GW{{ data.gw if data else '?' }}</h1>
+
+{% if not data %}
+<p class="text-gray-500">No analysis yet. <a href="/" class="underline text-blue-600">Go to Squad</a> and click Refresh.</p>
+{% else %}
+
+{% if data.chip_decision.chip %}
+<div class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6">
+  <p class="text-purple-800 font-semibold">💡 Chip recommendation: {{ data.chip_decision.chip.value.upper() }}</p>
+  <p class="text-purple-600 text-sm mt-1">{{ data.chip_decision.reason }}</p>
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+  {% for scenario in data.transfer_scenarios %}
+  <div class="bg-white rounded-xl shadow border
+    {% if scenario.colour == 'green' %}border-green-200
+    {% elif scenario.colour == 'amber' %}border-yellow-200
+    {% else %}border-red-200{% endif %} flex flex-col">
+
+    <!-- Header -->
+    <div class="px-4 py-3 rounded-t-xl
+      {% if scenario.colour == 'green' %}bg-green-50
+      {% elif scenario.colour == 'amber' %}bg-yellow-50
+      {% else %}bg-red-50{% endif %}">
+      <h3 class="font-bold text-gray-800">{{ scenario.label }}</h3>
+      {% if scenario.result %}
+        <p class="text-sm text-gray-500 mt-0.5">
+          Net xP gain:
+          <span class="font-semibold {% if scenario.net_xp_gain > 0 %}text-green-600{% else %}text-red-600{% endif %}">
+            {{ "%+.1f"|format(scenario.net_xp_gain) }}
+          </span>
+          {% if scenario.hit_cost > 0 %}
+          <span class="ml-1 text-xs text-gray-400">(incl. −{{ scenario.hit_cost }} pts hit)</span>
+          {% endif %}
+        </p>
+      {% endif %}
+    </div>
+
+    <!-- Transfers -->
+    <div class="px-4 py-4 flex-1">
+      {% if not scenario.result or (not scenario.transfers_out and scenario.label != 'Wildcard') %}
+        <p class="text-gray-400 text-sm italic">No transfers needed — squad is optimal.</p>
+      {% else %}
+        <div class="space-y-3">
+          {% for out_name, in_name in scenario.transfers_out | zip(scenario.transfers_in) %}
+          <div class="flex items-center gap-2 text-sm">
+            <div class="flex-1 text-right">
+              <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs font-medium">OUT</span>
+              <span class="ml-1 font-medium text-gray-800">{{ out_name }}</span>
+            </div>
+            <span class="text-gray-400">→</span>
+            <div class="flex-1">
+              <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium">IN</span>
+              <span class="ml-1 font-medium text-gray-800">{{ in_name }}</span>
+            </div>
+          </div>
+          {% endfor %}
+          {% if scenario.label == 'Wildcard' and scenario.transfers_in|length > 3 %}
+          <p class="text-xs text-gray-400">...and {{ scenario.transfers_in|length - 3 }} more changes</p>
+          {% endif %}
+        </div>
+
+        <!-- Captain -->
+        {% if scenario.result and scenario.result.captain_id %}
+          {% set cap = data.bootstrap.player_map.get(scenario.result.captain_id) %}
+          {% if cap %}
+          <div class="mt-4 pt-3 border-t border-gray-100 text-sm">
+            <span class="text-gray-500">Captain:</span>
+            <span class="font-semibold text-yellow-600 ml-1">{{ cap.web_name }}</span>
+            <span class="bg-yellow-400 text-black text-xs px-1.5 py-0.5 rounded ml-1 font-bold">C</span>
+          </div>
+          {% endif %}
+        {% endif %}
+
+        <!-- Copy to clipboard -->
+        <button
+          onclick="copyTransfers(this, {{ scenario.transfers_in | tojson }}, {{ scenario.transfers_out | tojson }})"
+          class="mt-3 w-full text-xs text-gray-500 border border-gray-200 rounded py-1.5 hover:bg-gray-50 transition">
+          📋 Copy player names
+        </button>
+      {% endif %}
+    </div>
+
+    <!-- Predicted xP -->
+    {% if scenario.result %}
+    <div class="px-4 py-3 border-t border-gray-100 rounded-b-xl bg-gray-50">
+      <p class="text-xs text-gray-500">
+        Predicted squad xP: <span class="font-bold text-gray-800">{{ "%.1f"|format(scenario.result.predicted_xp) }}</span>
+      </p>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<p class="text-xs text-gray-400 mt-6">
+  All scenarios use the same xP model. Net gain = xP of players in − xP of players out − hit cost.
+  Higher net gain = better transfer. Green ≥ +2xP, amber 0–2xP, red ≤ 0xP.
+</p>
+{% endif %}
+
+<script>
+function copyTransfers(btn, inNames, outNames) {
+  const lines = inNames.map((name, i) => `IN: ${name}  |  OUT: ${outNames[i] || ''}`);
+  navigator.clipboard.writeText(lines.join('\n')).then(() => {
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = '📋 Copy player names', 2000);
+  });
+}
+// Add zip filter support (Jinja2 doesn't have it natively — we handle it server-side via enumerate)
+</script>
+{% endblock %}

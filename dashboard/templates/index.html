@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Squad — FPL Dashboard{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-gray-900">GW{{ data.gw if data else '?' }} — Your Squad</h1>
+  <button
+    hx-post="/api/analyse"
+    hx-target="#squad-cards"
+    hx-swap="innerHTML"
+    hx-indicator="#refresh-spinner"
+    class="flex items-center gap-2 bg-[#38003c] text-white px-4 py-2 rounded-lg hover:opacity-90 transition text-sm font-medium">
+    ↻ Refresh Analysis
+    <span id="refresh-spinner" class="htmx-indicator text-xs animate-pulse">…</span>
+  </button>
+</div>
+
+<div id="squad-cards">
+  {% include "partials/squad_cards.html" %}
+</div>
+{% endblock %}

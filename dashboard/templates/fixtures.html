@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Fixtures — FPL Dashboard{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-900 mb-2">Fixture Difficulty — Next 6 Gameweeks</h1>
+<p class="text-sm text-gray-500 mb-6">
+  Colour = FDR (
+  <span class="fdr-1 px-1.5 py-0.5 rounded text-xs font-medium">1 Easy</span>
+  <span class="fdr-2 px-1.5 py-0.5 rounded text-xs font-medium">2</span>
+  <span class="fdr-3 px-1.5 py-0.5 rounded text-xs font-medium">3</span>
+  <span class="fdr-4 px-1.5 py-0.5 rounded text-xs font-medium">4</span>
+  <span class="fdr-5 px-1.5 py-0.5 rounded text-xs font-medium">5 Hard</span>
+  ). <span class="font-semibold text-green-600">×2</span> = Double GW. <span class="text-gray-400">—</span> = Blank GW.
+</p>
+
+{% if not data %}
+<p class="text-gray-500">No analysis yet.</p>
+{% else %}
+
+{% set team_map = data.bootstrap.team_map %}
+{% set gw = data.gw %}
+
+<div class="bg-white rounded-xl shadow overflow-x-auto">
+  <table class="min-w-full text-sm border-collapse">
+    <thead>
+      <tr class="bg-gray-50">
+        <th class="px-4 py-3 text-left font-semibold text-gray-700 border-b border-r border-gray-200">Team</th>
+        {% for i in range(6) %}
+        <th class="px-2 py-3 text-center font-semibold text-gray-700 border-b border-gray-200 min-w-[90px]">
+          GW{{ gw + i }}
+        </th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for team_id, gw_infos in data.fixture_grid | dictsort %}
+      {% set team = team_map.get(team_id) %}
+      <tr class="hover:bg-gray-50 cursor-pointer" onclick="highlightTeam({{ team_id }})">
+        <td class="px-4 py-2 font-medium text-gray-800 border-r border-gray-200 whitespace-nowrap">
+          {{ team.name if team else team_id }}
+          <span class="ml-1 text-xs text-gray-400">({{ team.short_name if team else '' }})</span>
+        </td>
+        {% for info in gw_infos %}
+        <td class="px-2 py-2 text-center font-semibold">
+          {% if info.is_bgw %}
+            <span class="bg-gray-100 text-gray-400 px-3 py-1.5 rounded text-xs">—</span>
+          {% else %}
+            {% set fdr = info.average_fdr|round|int %}
+            <span class="fdr-{{ fdr }} px-3 py-1.5 rounded text-xs block mx-auto">
+              {{ info.average_fdr | round(1) }}
+              {% if info.is_dgw %} ×2{% endif %}
+            </span>
+          {% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<p class="text-xs text-gray-400 mt-4">
+  FDR is enhanced using team strength differentials from FPL bootstrap data. Click a team row to highlight.
+</p>
+{% endif %}
+
+<script>
+let highlighted = null;
+function highlightTeam(teamId) {
+  const rows = document.querySelectorAll('tbody tr');
+  rows.forEach(row => row.classList.remove('ring-2', 'ring-[#38003c]', 'bg-purple-50'));
+  if (highlighted === teamId) { highlighted = null; return; }
+  highlighted = teamId;
+  rows.forEach((row, i) => {
+    // Match by index — team order is deterministic from dictsort
+    const allTeamIds = {{ data.fixture_grid.keys() | list | tojson }};
+    if (allTeamIds[i] === teamId) {
+      row.classList.add('bg-purple-50');
+    }
+  });
+}
+</script>
+{% endblock %}

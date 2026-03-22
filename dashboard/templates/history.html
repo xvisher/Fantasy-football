@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}History — FPL Dashboard{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-900 mb-6">Decision History & Model Accuracy</h1>
+
+<!-- Model weights -->
+<div class="bg-white rounded-xl shadow p-5 mb-6">
+  <h2 class="font-semibold text-gray-800 mb-4">Current Model Weights</h2>
+  {% if weights %}
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+    {% for key, value in weights.items() %}
+    <div class="text-center bg-gray-50 rounded-lg p-3">
+      <div class="text-lg font-bold text-[#38003c]">{{ "%.3f"|format(value) }}</div>
+      <div class="text-xs text-gray-500 mt-1">{{ key | replace('xp_weight_', '') }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  <p class="text-xs text-gray-400 mt-3">
+    Weights are tuned automatically after GW 5+ using scipy L-BFGS-B on predicted vs actual residuals.
+    Default = 1.0. Weights drift to reflect which factors actually predict points in your FPL context.
+  </p>
+  {% else %}
+  <p class="text-gray-400 text-sm italic">
+    No learned weights yet — using defaults from settings.py.
+    Self-tuning activates after 5 completed gameweeks with data.
+  </p>
+  {% endif %}
+</div>
+
+<!-- Chart -->
+{% if decisions %}
+<div class="bg-white rounded-xl shadow p-5 mb-6">
+  <h2 class="font-semibold text-gray-800 mb-4">Predicted xP vs Actual Points</h2>
+  <canvas id="accuracyChart" class="w-full" style="max-height:260px"></canvas>
+</div>
+{% endif %}
+
+<!-- Decision log -->
+<div class="bg-white rounded-xl shadow overflow-hidden">
+  <div class="px-5 py-4 border-b border-gray-100">
+    <h2 class="font-semibold text-gray-800">Decision Audit Log</h2>
+    <p class="text-xs text-gray-400 mt-0.5">Every recommendation made by the dashboard, with outcomes once GWs resolve.</p>
+  </div>
+  {% if not decisions %}
+  <div class="px-5 py-8 text-center text-gray-400 italic text-sm">
+    No decisions logged yet — run analysis to start building history.
+  </div>
+  {% else %}
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-gray-100 text-sm">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-4 py-3 text-left font-semibold text-gray-600">GW</th>
+          <th class="px-4 py-3 text-left font-semibold text-gray-600">Type</th>
+          <th class="px-4 py-3 text-left font-semibold text-gray-600">Action</th>
+          <th class="px-4 py-3 text-right font-semibold text-gray-600">Predicted xP</th>
+          <th class="px-4 py-3 text-right font-semibold text-gray-600">Actual pts</th>
+          <th class="px-4 py-3 text-right font-semibold text-gray-600">Δ</th>
+          <th class="px-4 py-3 text-center font-semibold text-gray-600">Mode</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-50">
+        {% for d in decisions %}
+        {% set delta = (d.actual_pts - d.predicted_xp) if d.actual_pts is not none else none %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-2 text-gray-700 font-medium">{{ d.gw }}</td>
+          <td class="px-4 py-2">
+            <span class="text-xs px-2 py-0.5 rounded
+              {% if d.action_type == 'transfer' %}bg-blue-100 text-blue-700
+              {% elif d.action_type == 'team_selection' %}bg-gray-100 text-gray-700
+              {% else %}bg-purple-100 text-purple-700{% endif %}">
+              {{ d.action_type }}
+            </span>
+          </td>
+          <td class="px-4 py-2 text-gray-600 text-xs max-w-xs truncate" title="{{ d.reasoning or '' }}">
+            {{ d.reasoning[:80] if d.reasoning else '—' }}
+          </td>
+          <td class="px-4 py-2 text-right text-gray-700">{{ "%.1f"|format(d.predicted_xp) }}</td>
+          <td class="px-4 py-2 text-right {% if d.actual_pts is not none %}text-gray-800 font-semibold{% else %}text-gray-300{% endif %}">
+            {{ "%.0f"|format(d.actual_pts) if d.actual_pts is not none else '—' }}
+          </td>
+          <td class="px-4 py-2 text-right text-xs font-semibold
+            {% if delta is not none %}{% if delta > 0 %}text-green-600{% else %}text-red-500{% endif %}
+            {% else %}text-gray-300{% endif %}">
+            {{ "%+.1f"|format(delta) if delta is not none else '—' }}
+          </td>
+          <td class="px-4 py-2 text-center">
+            {% if d.dry_run %}
+              <span class="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">dry</span>
+            {% else %}
+              <span class="text-xs text-green-700 bg-green-100 px-1.5 py-0.5 rounded">live</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+{% if decisions %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const raw = {{ decisions | tojson }};
+  const withActual = raw.filter(d => d.actual_pts !== null && d.action_type === 'transfer');
+  if (!withActual.length) return;
+
+  const ctx = document.getElementById('accuracyChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: withActual.map(d => `GW${d.gw}`),
+      datasets: [
+        {
+          label: 'Predicted xP',
+          data: withActual.map(d => d.predicted_xp),
+          borderColor: '#38003c',
+          backgroundColor: 'rgba(56,0,60,0.1)',
+          tension: 0.3,
+          fill: true,
+        },
+        {
+          label: 'Actual pts',
+          data: withActual.map(d => d.actual_pts),
+          borderColor: '#00ff87',
+          backgroundColor: 'rgba(0,255,135,0.1)',
+          tension: 0.3,
+          fill: true,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'top' } },
+      scales: { y: { beginAtZero: false } },
+    },
+  });
+});
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Players — FPL Dashboard{% endblock %}
+
+{% block content %}
+<div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+  <h1 class="text-2xl font-bold text-gray-900">Player Rankings — GW{{ data.gw if data else '?' }}</h1>
+
+  <!-- Filters -->
+  <form method="get" action="/players" class="flex flex-wrap gap-2 items-center text-sm">
+    <!-- Position filter -->
+    <div class="flex gap-1">
+      {% for pos in ['', 'GKP', 'DEF', 'MID', 'FWD'] %}
+      <button type="submit" name="pos" value="{{ pos }}"
+        class="px-3 py-1 rounded border font-medium transition
+          {% if filter_pos == pos %}bg-[#38003c] text-white border-[#38003c]
+          {% else %}bg-white text-gray-600 border-gray-300 hover:border-gray-400{% endif %}">
+        {{ pos if pos else 'All' }}
+      </button>
+      {% endfor %}
+    </div>
+
+    <!-- Toggles -->
+    <label class="flex items-center gap-1.5 cursor-pointer">
+      <input type="checkbox" name="dgw" value="true" {% if filter_dgw %}checked{% endif %}
+             onchange="this.form.submit()" class="rounded">
+      <span class="text-gray-600">DGW only</span>
+    </label>
+    <label class="flex items-center gap-1.5 cursor-pointer">
+      <input type="checkbox" name="available" value="true" {% if filter_available %}checked{% endif %}
+             onchange="this.form.submit()" class="rounded">
+      <span class="text-gray-600">Available only</span>
+    </label>
+    <input type="hidden" name="pos" value="{{ filter_pos }}">
+  </form>
+</div>
+
+{% if not data %}
+<p class="text-gray-500">No analysis yet.</p>
+{% else %}
+
+<div class="bg-white rounded-xl shadow overflow-hidden">
+  <table class="min-w-full divide-y divide-gray-200 text-sm">
+    <thead class="bg-gray-50">
+      <tr>
+        <th class="px-4 py-3 text-left font-semibold text-gray-600 w-6">#</th>
+        <th class="px-4 py-3 text-left font-semibold text-gray-600">Player</th>
+        <th class="px-3 py-3 text-center font-semibold text-gray-600">Pos</th>
+        <th class="px-3 py-3 text-right font-semibold text-gray-600">Price</th>
+        <th class="px-3 py-3 text-right font-semibold text-[#38003c]">xP GW</th>
+        <th class="px-3 py-3 text-right font-semibold text-gray-600">xP ({{ data.bootstrap.events|selectattr('is_next')|first|attr('id') if data }}+{{ settings_lookahead }})</th>
+        <th class="px-3 py-3 text-center font-semibold text-gray-600">Fix</th>
+        <th class="px-3 py-3 text-right font-semibold text-gray-600">Own%</th>
+        <th class="px-3 py-3 text-right font-semibold text-gray-600">Form</th>
+        <th class="px-3 py-3 text-left font-semibold text-gray-600">News</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for pwxp in players[:200] %}
+      {% set p = pwxp.player %}
+      {% set in_squad = (p.id in data.starting_ids + data.bench_ids) %}
+      <tr class="hover:bg-gray-50 {% if in_squad %}bg-purple-50{% endif %}">
+        <td class="px-4 py-2 text-gray-400">{{ loop.index }}</td>
+        <td class="px-4 py-2">
+          <div class="flex items-center gap-2">
+            <span class="font-medium text-gray-900">{{ p.web_name }}</span>
+            {% if in_squad %}
+              <span class="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">In squad</span>
+            {% endif %}
+            {% if p.id == data.captain_id %}
+              <span class="text-xs bg-yellow-400 text-black px-1.5 py-0.5 rounded font-bold">C</span>
+            {% endif %}
+          </div>
+          <div class="text-xs text-gray-400">
+            {{ data.bootstrap.team_map.get(p.team).short_name if data.bootstrap.team_map.get(p.team) else '' }}
+          </div>
+        </td>
+        <td class="px-3 py-2 text-center">
+          <span class="text-xs font-bold px-2 py-0.5 rounded {{ position_badge(p.position.value) }}">
+            {{ p.position.value }}
+          </span>
+        </td>
+        <td class="px-3 py-2 text-right text-gray-700">£{{ "%.1f"|format(p.price) }}m</td>
+        <td class="px-3 py-2 text-right font-bold
+          {% if pwxp.xp_next_gw >= 8 %}text-green-600
+          {% elif pwxp.xp_next_gw >= 5 %}text-gray-800
+          {% else %}text-red-400{% endif %}">
+          {{ "%.1f"|format(pwxp.xp_next_gw) }}
+          {% if pwxp.is_dgw %}<span class="text-xs text-green-500 ml-0.5">×2</span>{% endif %}
+          {% if pwxp.is_bgw %}<span class="text-xs text-gray-400 ml-0.5">BGW</span>{% endif %}
+        </td>
+        <td class="px-3 py-2 text-right text-gray-600">{{ "%.1f"|format(pwxp.xp_lookahead) }}</td>
+        <td class="px-3 py-2 text-center">
+          <!-- FDR mini-bar -->
+          {% set fdr = pwxp.fdr_next_gw|round|int %}
+          <div class="flex justify-center gap-px">
+            {% for i in range(1, 6) %}
+            <div class="w-2.5 h-3 rounded-sm fdr-{{ fdr if i <= fdr else '0' }}
+              {% if i > fdr %}bg-gray-200{% endif %}"></div>
+            {% endfor %}
+          </div>
+          <div class="text-xs text-gray-400 mt-0.5">{{ "%.1f"|format(pwxp.fdr_next_gw) }}</div>
+        </td>
+        <td class="px-3 py-2 text-right text-gray-500 text-xs">{{ "%.1f"|format(pwxp.ownership_pct) }}%</td>
+        <td class="px-3 py-2 text-right text-gray-600">{{ p.form }}</td>
+        <td class="px-3 py-2 text-xs text-amber-600 max-w-xs truncate" title="{{ p.news }}">
+          {% if p.status != 'a' %}
+            {% if p.status == 'i' %}🚑 {% elif p.status == 'd' %}⚠ {% elif p.status == 's' %}🟥 {% endif %}
+            {{ p.news[:60] }}{% if p.news|length > 60 %}…{% endif %}
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if players|length > 200 %}
+  <div class="px-4 py-3 text-xs text-gray-400 text-center border-t">
+    Showing top 200 of {{ players|length }} players. Use filters to narrow down.
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}
